@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Guerra de Listas - Desafio de Lógica</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        #game-container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 95%; max-width: 950px; text-align: center; }
+        
+        .header-status { display: flex; justify-content: space-around; align-items: center; margin-bottom: 20px; background: #e8f5e9; padding: 15px; border-radius: 10px; border: 2px solid #4caf50; }
+        .info-box { font-size: 1.2em; font-weight: bold; color: #2e7d32; }
+        .info-box span { color: #d32f2f; font-family: monospace; font-size: 1.4em; }
+        
+        .proximo-aluno { background: #fff3e0; padding: 15px; border: 2px dashed #ffb74d; border-radius: 10px; margin-bottom: 20px; display: inline-block; min-width: 250px; }
+        .nome-destaque { font-size: 2.2em; font-weight: bold; color: #e65100; display: block; margin-top: 5px; text-transform: uppercase; }
+
+        #lista-visual { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px; min-height: 180px; margin-top: 20px; padding: 15px; background: #fafafa; border-radius: 10px; border: 1px solid #ddd; }
+        
+        .aluno-node { display: flex; align-items: center; }
+        .card { background: #4caf50; color: white; padding: 8px; border-radius: 12px; font-weight: bold; display: flex; flex-direction: column; align-items: center; width: 85px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 3px solid #388e3c; }
+        .foto-aluno { width: 60px; height: 60px; border-radius: 50%; border: 2px solid white; object-fit: cover; margin-bottom: 5px; background: #fff; }
+        .nome-card { font-size: 0.85em; text-align: center; overflow: hidden; width: 100%; }
+        
+        .slot-insercao { width: 40px; height: 70px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 30px; transition: 0.2s; border-radius: 8px; }
+        .slot-insercao:hover { background: #bbdefb; color: #1976d2; transform: scale(1.3); }
+        .slot-insercao::after { content: '➔'; }
+
+        .vitoria-msg { display: none; background: #1a237e; padding: 30px; border-radius: 15px; color: white; margin-bottom: 20px; }
+        .nota-final { font-size: 4em; display: block; color: #ffeb3b; }
+        
+        .btn-reset { margin-top: 20px; padding: 15px 30px; cursor: pointer; background: #f44336; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; }
+        .feedback-temp { font-size: 1.3em; font-weight: bold; margin-top: 15px; height: 35px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="header-status">
+        <div class="info-box">Nota: <span id="pontos">0.0</span></div>
+        <div class="info-box">Item: <span id="progresso">0</span>/10</div>
+        <div class="info-box">Tempo: <span id="timer">00:00</span></div>
+    </div>
+
+    <div id="area-jogo">
+        <div class="proximo-aluno">
+            <span>Onde este aluno entra na lista?</span>
+            <span id="nome-aluno" class="nome-destaque">---</span>
+        </div>
+        
+        <div id="lista-visual"></div>
+        <div id="feedback" class="feedback-temp"></div>
+    </div>
+
+    <div id="vitoria" class="vitoria-msg">
+        🏆 AVALIAÇÃO CONCLUÍDA! <br>
+        Sua nota final: <span class="nota-final" id="nota-exibida">0.0</span>
+        Tempo: <span id="tempo-final">00:00</span>
+        <br>
+        <button class="btn-reset" onclick="resetarJogo()">Reiniciar Atividade</button>
+    </div>
+</div>
+
+<script>
+    // Lista base para começar (meio do alfabeto)
+    const listaInicial = ["Carlos", "Mariana", "Ricardo"];
+    
+    // 10 Alunos em ordem "bagunçada" para forçar o aluno a procurar a posição
+    // Ex: Alana (início), Zeca (fim), Igor (meio), Beatriz (início)...
+    const novosAlunos = [
+        "Alana",    // Início
+        "Zeca",     // Fim
+        "Igor",     // Meio (entre Carlos e Mariana)
+        "Beatriz",  // Início (entre Alana e Carlos)
+        "Natan",    // Meio (entre Mariana e Ricardo)
+        "Daniel",   // Meio (entre Carlos e Eduardo/Igor)
+        "Vivian",   // Perto do Fim
+        "Guto",     // Meio
+        "Fábio",    // Meio
+        "Yuri"      // Perto do Fim
+    ];
+    
+    const fotos = [
+        "https://i.pinimg.com/236x/e0/4e/4c/e04e4c145f6c2d8ddff59bdfc5fdee7e.jpg",
+        "https://cdn-icons-png.flaticon.com/512/163/163801.png",
+        "https://cdn-icons-png.flaticon.com/512/163/163804.png",
+        "https://cdn-icons-png.flaticon.com/512/163/163811.png",
+        "https://cdn-icons-png.flaticon.com/512/163/163814.png",
+        "https://cdn-icons-png.flaticon.com/512/163/163807.png",
+        "https://cdn-icons-png.flaticon.com/512/145/145843.png",
+        "https://cdn-icons-png.flaticon.com/512/145/145847.png"
+    ];
+
+    let listaAtual = [...listaInicial];
+    let indiceNovo = 0;
+    let acertos = 0;
+    let segundos = 0;
+    let intervalo;
+    let jogoAtivo = false;
+
+    function renderizarLista() {
+        const container = document.getElementById('lista-visual');
+        container.innerHTML = '';
+        
+        criarSlot(0);
+
+        listaAtual.forEach((nome, index) => {
+            const node = document.createElement('div');
+            node.className = 'aluno-node';
+            node.innerHTML = `
+                <div class="card">
+                    <img src="${fotos[nome.charCodeAt(0) % fotos.length]}" class="foto-aluno">
+                    <span class="nome-card">${nome}</span>
+                </div>`;
+            container.appendChild(node);
+            criarSlot(index + 1);
+        });
+
+        if(indiceNovo < novosAlunos.length) {
+            document.getElementById('nome-aluno').innerText = novosAlunos[indiceNovo];
+            document.getElementById('progresso').innerText = indiceNovo + 1;
+            document.getElementById('pontos').innerText = acertos.toFixed(1);
+        } else {
+            finalizarAtividade();
+        }
+    }
+
+    function criarSlot(index) {
+        const slot = document.createElement('div');
+        slot.className = 'slot-insercao';
+        slot.onclick = () => processarJogada(index);
+        document.getElementById('lista-visual').appendChild(slot);
+    }
+
+    function processarJogada(posicaoEscolhida) {
+        if (!jogoAtivo) {
+            jogoAtivo = true;
+            intervalo = setInterval(() => { 
+                segundos++; 
+                document.getElementById('timer').innerText = (Math.floor(segundos/60)).toString().padStart(2,'0') + ":" + (segundos%60).toString().padStart(2,'0'); 
+            }, 1000);
+        }
+
+        const nomeParaInserir = novosAlunos[indiceNovo];
+        const feedback = document.getElementById('feedback');
+        
+        // Lógica de Validação
+        let listaTeste = [...listaAtual];
+        listaTeste.splice(posicaoEscolhida, 0, nomeParaInserir);
+        
+        const listaCorreta = [...listaTeste].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        const acertou = JSON.stringify(listaTeste) === JSON.stringify(listaCorreta);
+
+        if (acertou) {
+            acertos += 1.0;
+            listaAtual.splice(posicaoEscolhida, 0, nomeParaInserir);
+            feedback.innerText = "✅ CORRETO! Aluno adicionado.";
+            feedback.style.color = "#2e7d32";
+        } else {
+            feedback.innerText = "❌ ERROU! Aluno descartado da lista.";
+            feedback.style.color = "#d32f2f";
+        }
+
+        indiceNovo++;
+        renderizarLista();
+        setTimeout(() => { feedback.innerText = ""; }, 1200);
+    }
+
+    function finalizarAtividade() {
+        clearInterval(intervalo);
+        document.getElementById('area-jogo').style.display = 'none';
+        document.getElementById('vitoria').style.display = 'block';
+        document.getElementById('nota-exibida').innerText = acertos.toFixed(1);
+        document.getElementById('tempo-final').innerText = document.getElementById('timer').innerText;
+    }
+
+    function resetarJogo() {
+        clearInterval(intervalo);
+        segundos = 0; acertos = 0; indiceNovo = 0; jogoAtivo = false;
+        listaAtual = [...listaInicial];
+        document.getElementById('timer').innerText = "00:00";
+        document.getElementById('area-jogo').style.display = 'block';
+        document.getElementById('vitoria').style.display = 'none';
+        renderizarLista();
+    }
+
+    renderizarLista();
+</script>
+</body>
+</html>
